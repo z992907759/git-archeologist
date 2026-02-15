@@ -87,6 +87,49 @@ def index_commits(commits):
     return records
 
 
+def append_commits(commits):
+    """Embed and append commits to current LanceDB table (create if missing)."""
+    global _DB, _TABLE
+
+    if SentenceTransformer is None or lancedb is None:
+        raise RuntimeError("Missing dependency: sentence-transformers or lancedb")
+
+    if _DB is None:
+        os.makedirs(_DB_PATH, exist_ok=True)
+        _DB = lancedb.connect(_DB_PATH)
+
+    _ensure_embed_model()
+
+    texts = [build_text(commit) for commit in commits]
+    vectors = _EMBED_MODEL.encode(texts).tolist() if texts else []
+    rows = []
+    for commit, text, vector in zip(commits, texts, vectors):
+        rows.append(
+            {
+                "vector": vector,
+                "hash": commit.get("hash", ""),
+                "author": commit.get("author", ""),
+                "date": commit.get("date", ""),
+                "message": commit.get("message", ""),
+                "diff": commit.get("diff", ""),
+                "text": text,
+            }
+        )
+
+    if not rows:
+        return []
+
+    if _TABLE is None:
+        try:
+            _TABLE = _DB.open_table(_TABLE_NAME)
+        except Exception:
+            _TABLE = _DB.create_table(_TABLE_NAME, data=rows, mode="overwrite")
+            return [{"commit": c, "text": t} for c, t in zip(commits, texts)]
+
+    _TABLE.add(rows)
+    return [{"commit": c, "text": t} for c, t in zip(commits, texts)]
+
+
 def retrieve(query, topk=3):
     """Retrieve top-k related commits by vector similarity."""
     if not query or _TABLE is None:

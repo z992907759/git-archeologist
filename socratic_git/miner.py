@@ -161,6 +161,146 @@ def extract_changed_files(diff_text):
     return files
 
 
+def detect_structured_changes(diff_text: str):
+    """Detect structured numeric parameter changes from unified diff blocks."""
+    if not diff_text:
+        return []
+
+    keys = {
+        "timeout",
+        "retries",
+        "retry",
+        "threshold",
+        "limit",
+        "backoff",
+        "window",
+        "batch",
+        "max",
+        "min",
+        "ttl",
+        "debounce",
+    }
+    max_total = 30
+    max_per_key = 10
+
+    results = []
+    per_key_count = {}
+    pending_removed = {}
+    current_file = ""
+    current_hunk = ""
+
+    def classify_confidence(key, old, new):
+        if old.replace(".", "", 1).isdigit() and new.replace(".", "", 1).isdigit() and old != new:
+            return "high"
+        if key in {"timeout", "retries", "retry", "threshold", "backoff", "ttl"}:
+            return "med"
+        return "low"
+
+    def flush_pending():
+        pending_removed.clear()
+
+    def key_from_line(text):
+        low = text.lower()
+        for k in keys:
+            if re.search(rf"\b[\w]*{re.escape(k)}[\w]*\b", low):
+                return k
+        return ""
+
+    def extract_candidates(line_text):
+        """Return list of (key, value) candidates for one diff line body."""
+        candidates = []
+        low = line_text.lower()
+
+        # 1/2/3) key=5, key:5, "key":5
+        for k in keys:
+            pat = re.compile(
+                rf"""(?ix)
+                ["']?([A-Za-z0-9_]*{re.escape(k)}[A-Za-z0-9_]*)["']?
+                \s*(?:=|:)\s*
+                ["']?([0-9]+(?:\.[0-9]+)?)["']?
+                """
+            )
+            m = pat.search(line_text)
+            if m:
+                candidates.append((k, m.group(2)))
+
+        # 4) Duration.ofSeconds(5)
+        m = re.search(r"Duration\.ofSeconds\(\s*([0-9]+)\s*\)", line_text)
+        if m:
+            k = key_from_line(low) or "timeout"
+            candidates.append((k, m.group(1)))
+
+        # 5) 5000 -> 10000 with ms/millis/timeout
+        if any(tok in low for tok in ("ms", "millis", "timeout")):
+            m = re.search(r"\b([0-9]{2,})\b", line_text)
+            if m:
+                k = key_from_line(low) or "timeout"
+                candidates.append((k, m.group(1)))
+
+        # 6) PT5S / PT10S
+        m = re.search(r"\bPT([0-9]+)S\b", line_text, flags=re.IGNORECASE)
+        if m:
+            k = key_from_line(low) or "timeout"
+            candidates.append((k, m.group(1)))
+
+        return candidates
+
+    def push_result(key, old_v, new_v, before_line, after_line):
+        if len(results) >= max_total:
+            return
+        per_key_count[key] = per_key_count.get(key, 0)
+        if per_key_count[key] >= max_per_key:
+            return
+        if old_v == new_v:
+            return
+        results.append(
+            {
+                "key": key,
+                "from": old_v,
+                "to": new_v,
+                "file": current_file,
+                "hunk": current_hunk,
+                "line_before": before_line.strip(),
+                "line_after": after_line.strip(),
+                "confidence": classify_confidence(key, old_v, new_v),
+            }
+        )
+        per_key_count[key] += 1
+
+    for raw in diff_text.splitlines():
+        line = raw.rstrip("\n")
+        if line.startswith("diff --git "):
+            flush_pending()
+            parts = line.split()
+            current_file = ""
+            if len(parts) >= 4 and parts[3].startswith("b/"):
+                current_file = parts[3][2:]
+            current_hunk = ""
+            continue
+        if line.startswith("@@ "):
+            flush_pending()
+            current_hunk = line
+            continue
+        if line.startswith(("--- ", "+++ ", "index ")):
+            continue
+
+        if line.startswith("-") and not line.startswith("---"):
+            body = line[1:]
+            for k, v in extract_candidates(body):
+                pending_removed.setdefault(k, []).append((v, body))
+            continue
+
+        if line.startswith("+") and not line.startswith("+++"):
+            body = line[1:]
+            for k, v in extract_candidates(body):
+                olds = pending_removed.get(k, [])
+                if olds:
+                    old_v, old_line = olds.pop(0)
+                    push_result(k, old_v, v, old_line, body)
+
+    return results[:max_total]
+
+
 def get_file_blame(repo_path, file_path):
     """Return a short blame summary for a file."""
     if Repo is None:

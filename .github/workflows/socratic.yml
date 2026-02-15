@@ -1,0 +1,82 @@
+name: Socratic CI Reports
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  socratic-reports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate trace/regress reports
+        env:
+          SOCRATIC_SKIP_LLM: '1'
+        run: |
+          mkdir -p reports/ci
+          python run.py trace \
+            --repo . \
+            --q "Summarize recent architectural changes and why they happened." \
+            --out reports/ci/trace.md \
+            --html-out reports/ci/trace.html \
+            --retrieval keyword \
+            --github-evidence off
+
+          python run.py regress \
+            --repo . \
+            --file socratic_git/cli.py \
+            --pattern "def main\(" \
+            --out reports/ci/regress.md \
+            --html-out reports/ci/regress.html \
+            --github-evidence off
+
+      - name: Upload reports artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: socratic-reports
+          path: reports/ci/**
+          if-no-files-found: error
+
+      - name: PR comment (optional)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const body = [
+              'Socratic CI reports generated.',
+              '',
+              '- trace.md / trace.html',
+              '- regress.md / regress.html',
+              '',
+              'Download from Actions artifacts: **socratic-reports**.'
+            ].join('\n');
+            try {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            } catch (e) {
+              core.warning(`Failed to post PR comment: ${e.message}`);
+            }

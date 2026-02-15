@@ -16,6 +16,10 @@ venv/
 
 # Generated reports
 reports/**
+*_report.md
+*_trace.md
+*_regress.md
+*_bisect.md
 !reports/
 !reports/.gitkeep
 !reports/trace/
@@ -36,8 +40,14 @@ data/**
 !data/keyword_index/
 !data/keyword_index/.gitkeep
 .lancedb/
+.socratic_cache/
+*.db
+*.sqlite
+*.parquet
 
 # Model weights / artifacts
+models/
+checkpoints/
 *.safetensors
 *.bin
 *.gguf
@@ -45,3 +55,8 @@ data/**
 *.pt
 *.pth
 .cache/huggingface/
+
+# VSCode / Node build artifacts
+node_modules/
+out/
+dist/

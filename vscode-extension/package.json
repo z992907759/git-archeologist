@@ -1,0 +1,67 @@
+{
+  "name": "socratic-git-vscode",
+  "displayName": "Socratic Git",
+  "description": "Minimal VSCode shell for Socratic Git trace command.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:socraticGit.traceDecision",
+    "onCommand:socraticGit.openReportsFolder",
+    "onCommand:socraticGit.clearReports"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "socraticGit.traceDecision",
+        "title": "Trace Decision"
+      },
+      {
+        "command": "socraticGit.openReportsFolder",
+        "title": "Socratic: Open Reports Folder"
+      },
+      {
+        "command": "socraticGit.clearReports",
+        "title": "Socratic: Clear Reports"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "socraticGit.traceDecision",
+          "group": "navigation@100",
+          "when": "editorTextFocus"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Socratic",
+      "properties": {
+        "socratic.pythonCommand": {
+          "type": "string",
+          "default": "python3",
+          "description": "Python command used to run Socratic CLI, e.g. \"conda run -n socratic-git python\"."
+        },
+        "socratic.cliArgsExtra": {
+          "type": "string",
+          "default": "",
+          "description": "Extra CLI args appended before --out, e.g. \"--retrieval keyword --github-evidence off\"."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.2"
+  }
+}
