@@ -1,0 +1,4 @@
+gitpython
+lancedb
+sentence-transformers
+mlx-lm
