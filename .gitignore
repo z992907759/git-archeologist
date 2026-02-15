@@ -1,2 +1,47 @@
+# macOS / temp
 .DS_Store
+.tmp
+.cache
+
+# Python cache
 __pycache__/
+*.pyc
+
+# Virtual envs
+.venv/
+venv/
+
+# Logs
+*.log
+
+# Generated reports
+reports/**
+!reports/
+!reports/.gitkeep
+!reports/trace/
+!reports/trace/.gitkeep
+!reports/regress/
+!reports/regress/.gitkeep
+!reports/bisect/
+!reports/bisect/.gitkeep
+!reports/tests/
+!reports/tests/.gitkeep
+
+# Local indexes / caches
+data/**
+!data/
+!data/.gitkeep
+!data/lancedb/
+!data/lancedb/.gitkeep
+!data/keyword_index/
+!data/keyword_index/.gitkeep
+.lancedb/
+
+# Model weights / artifacts
+*.safetensors
+*.bin
+*.gguf
+*.mlx
+*.pt
+*.pth
+.cache/huggingface/
