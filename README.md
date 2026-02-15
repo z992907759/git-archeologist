@@ -196,3 +196,21 @@ In short, this is a practical AI assistant for **engineering memory**.
 - Generated artifacts under `reports/` and `data/` are intentionally ignored from Git.
 - Before push, run:
   `git status && git diff --cached --name-only && python scripts/preflight_check.py`
+
+---
+
+## Roadmap / Future Work
+
+- IDE/UX: Add a VS Code extension shell that calls existing CLI commands for smoother in-editor workflows.
+- Why analysis: Expand evidence sources (PR/Issue metadata, wider context windows) and surface answer confidence.
+- Large-repo performance: Add incremental indexing, clarify recent-N indexing strategies, and evaluate `git worktree`-based bisect optimization.
+- Symbol resolution: Upgrade heuristic matching to optional LSP-backed cross-file symbol navigation.
+- Collaboration/CI: Integrate with GitHub Actions/CI to auto-generate Markdown/HTML reports for review workflows.
+- Reporting UX: Support optional interactive HTML report export.
+
+## Known Limitations
+
+- Why-level answers are evidence-bound (commit/PR/issue quality); low-evidence cases return unknown/insufficient-evidence conclusions.
+- Very large repositories can be slow; current defaults are better suited for mid-sized repos or recent-N history slices.
+- Offline mode degrades to keyword index/retrieval when vector embeddings are unavailable.
+- File/symbol detection still includes heuristic matching when LSP integration is not enabled.
