@@ -50,7 +50,7 @@ Socratic Git automates that workflow into a local CLI pipeline:
 Ask a repository-level question:
 
 ```bash
-python socratic_mvp.py ask --repo /path/to/repo --q "In src/main.py, why was hybrid_search added?" --topk 3
+python run.py ask --repo /path/to/repo --q "In src/main.py, why was hybrid_search added?" --topk 3
 ```
 
 Expected behavior:
@@ -114,18 +114,19 @@ pip install -r requirements.txt
 ### Build / refresh index
 
 ```bash
-python socratic_mvp.py index --repo /path/to/repo --n 200
+python run.py index --repo /path/to/repo --n 200
 ```
 
 Arguments:
 
 - `--repo`: local Git repository path
 - `--n`: number of latest commits to index
+- `--mode`: `vector` or `keyword` (default `vector`; offline fallback supported)
 
 ### Ask questions
 
 ```bash
-python socratic_mvp.py ask --repo /path/to/repo --q "Why was login feature added?" --topk 3
+python run.py ask --repo /path/to/repo --q "Why was login feature added?" --topk 3
 ```
 
 Arguments:
@@ -133,6 +134,7 @@ Arguments:
 - `--repo`: local Git repository path
 - `--q`: natural language question
 - `--topk`: number of retrieved commit contexts
+- `--retrieval`: `vector` or `keyword` (default `vector`)
 
 You can also run module entrypoint:
 
@@ -147,12 +149,21 @@ python -m socratic_git.cli ask --repo /path/to/repo --q "..." --topk 3
 
 ```text
 .
-├── socratic_mvp.py            # compatibility entrypoint
-├── requirements.txt
 ├── README.md
+├── requirements.txt
+├── run.py                     # unified entrypoint
+├── data/                      # local indexes/caches (git-ignored)
+│   ├── lancedb/
+│   └── keyword_index/
+├── reports/                   # generated reports (git-ignored)
+├── scripts/
+│   ├── legacy_mvp.py
+│   ├── test_env.py
+│   ├── preflight_check.py     # staged-files guard
+│   └── install_hooks.sh       # install pre-commit hook
 └── socratic_git/
     ├── __init__.py
-    ├── cli.py                 # argparse CLI (index / ask)
+    ├── cli.py                 # argparse CLI (index / ask / trace / regress / bisect)
     ├── miner.py               # git mining, blame, symbol and introducing commit helpers
     ├── rag.py                 # embeddings + LanceDB indexing/retrieval
     ├── llm.py                 # local mlx-lm generation
@@ -182,3 +193,6 @@ In short, this is a practical AI assistant for **engineering memory**.
 - If evidence is insufficient, the system is designed to answer:
   `我不知道（根据现有提交上下文无法判断）。`
 - Better commit messages and cleaner diffs directly improve answer quality.
+- Generated artifacts under `reports/` and `data/` are intentionally ignored from Git.
+- Before push, run:
+  `git status && git diff --cached --name-only && python scripts/preflight_check.py`
